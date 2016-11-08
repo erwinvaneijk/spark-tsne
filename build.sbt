@@ -1,5 +1,7 @@
 import Common._
 
+wartremoverErrors in (Compile, compile) ++= Warts.unsafe
+
 lazy val root = Project("spark-tsne", file(".")).
   settings(commonSettings: _*).
   aggregate(core, vis, examples)
