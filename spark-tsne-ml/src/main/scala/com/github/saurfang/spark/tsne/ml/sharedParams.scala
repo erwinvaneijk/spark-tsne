@@ -1,11 +1,11 @@
-package nl.oakhill.datascience.raop
+package com.github.saurfang.spark.tsne.ml
 
 import org.apache.spark.ml.param.{Param, Params}
 
 /**
   * Trait for shared param keyCol.
   */
-private[raop] trait HasKeyCol extends Params {
+private[ml] trait HasKeyCol extends Params {
 
   /**
     * Param for category column name.
@@ -22,7 +22,7 @@ private[raop] trait HasKeyCol extends Params {
 /**
   * Trait for shared param outputCol (default: uid + "__output").
   */
-private[raop] trait HasOutputCol extends Params {
+private[ml] trait HasOutputCol extends Params {
 
   /**
     * Param for output column name.
@@ -39,7 +39,7 @@ private[raop] trait HasOutputCol extends Params {
 /**
   * Trait for shared param inputCol (default: uid + "__input").
   */
-private[raop] trait HasInputCol extends Params {
+private[ml] trait HasInputCol extends Params {
 
   /**
     * Param for input column name.
