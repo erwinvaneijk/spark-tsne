@@ -1,18 +1,13 @@
-package org.apache.spark.mllib
+package org.apache.spark.ml
 
 import breeze.linalg._
 import breeze.numerics._
-import org.apache.spark.mllib.linalg.{Vector, Vectors}
+import org.apache.spark.ml.linalg.Vector
 import org.apache.spark.mllib.util.MLUtils
-
 
 object X2PHelper {
 
   case class VectorWithNorm(vector: Vector, norm: Double)
-
-  def fastSquaredDistance(v1: VectorWithNorm, v2: VectorWithNorm): Double = {
-    MLUtils.fastSquaredDistance(v1.vector, v1.norm, v2.vector, v2.norm)
-  }
 
   def Hbeta(D: DenseVector[Double], beta: Double = 1.0) : (Double, DenseVector[Double]) = {
     val P: DenseVector[Double] = exp(- D * beta)

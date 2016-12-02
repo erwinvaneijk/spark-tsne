@@ -18,12 +18,13 @@
 package org.apache.spark
 
 import _root_.io.netty.util.internal.logging.{InternalLoggerFactory, Slf4JLoggerFactory}
+import org.apache.spark.sql.SparkSession
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Suite}
 
-/** Manages a local `sc` {@link SparkContext} variable, correctly stopping it after each test. */
+/** Manages a local `sc` {@link SparkSession} variable, correctly stopping it after each test. */
 trait LocalSparkContext extends BeforeAndAfterEach with BeforeAndAfterAll { self: Suite =>
 
-  @transient var sc: SparkContext = _
+  @transient var sparkSession: SparkSession = _
 
   override def beforeAll() {
     InternalLoggerFactory.setDefaultFactory(new Slf4JLoggerFactory())
@@ -36,14 +37,14 @@ trait LocalSparkContext extends BeforeAndAfterEach with BeforeAndAfterAll { self
   }
 
   def resetSparkContext(): Unit = {
-    LocalSparkContext.stop(sc)
-    sc = null
+    sparkSession.stop()
+    sparkSession = null
   }
 
 }
 
 object LocalSparkContext {
-  def stop(sc: SparkContext) {
+  def stop(sc: SparkSession) {
     if (sc != null) {
       sc.stop()
     }
@@ -52,12 +53,11 @@ object LocalSparkContext {
   }
 
   /** Runs `f` by passing in `sc` and ensures that `sc` is stopped. */
-  def withSpark[T](sc: SparkContext)(f: SparkContext => T): T = {
+  def withSpark[T](sc: SparkSession)(f: SparkSession => T): T = {
     try {
       f(sc)
     } finally {
       stop(sc)
     }
   }
-
 }

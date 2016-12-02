@@ -1,34 +1,53 @@
 package com.github.saurfang.spark.tsne
 
 import breeze.linalg.DenseVector
-import org.apache.spark.mllib.X2PHelper._
-import org.apache.spark.mllib.linalg.Vectors
-import org.apache.spark.mllib.linalg.distributed.{CoordinateMatrix, MatrixEntry, RowMatrix}
-import org.apache.spark.mllib.rdd.MLPairRDDFunctions._
+import org.apache.spark.ml.X2PHelper.VectorWithNorm
+import org.apache.spark.ml.linalg.Matrix
+import org.apache.spark.ml.X2PHelper._
+import org.apache.spark.ml.linalg.Vectors
+import org.apache.spark.sql.Dataset
 import org.slf4j.LoggerFactory
 
 object X2P {
 
   private def logger = LoggerFactory.getLogger(X2P.getClass)
 
-  def apply(x: RowMatrix, tol: Double = 1e-5, perplexity: Double = 30.0): CoordinateMatrix = {
+  def apply(x : Dataset[Vector[Double]], tol: Double = 1e-5, perplexity: Double = 30.0) : Dataset[Vector[Double]] = {
+
+    val mu = (3 * perplexity).toInt //TODO: Expose this as parameter
+    val logU = Math.log(perplexity)
+    val norms = x.rdd.map(org.apache.spark.ml.linalg.Vectors.norm(_, 2.0))
+    val rowsWithNorm: Iterator[VectorWithNorm] = x.rowIter.zip(norms).map{ case (v, norm) => VectorWithNorm(v, norm) }
+    val neighbors = rowsWithNorm.zipWithIndex
+      .cartesian(rowsWithNorm.zipWithIndex
+        .flatMap {
+          case ((u, i), (v, j)) =>
+            if(i < j) {
+              val dist = Vectors.sqdist(u, v)
+              Seq((i, (j, dist)), (j, (i, dist)))
+            } else Seq.empty
+        }
+        .topByKey(mu)(Ordering.by(e => -e._2))
+
+  }
+
+  def apply(x: Matrix, tol: Double = 1e-5, perplexity: Double = 30.0): Matrix = {
     require(tol >= 0, "Tolerance must be non-negative")
     require(perplexity > 0, "Perplexity must be positive")
 
     val mu = (3 * perplexity).toInt //TODO: Expose this as parameter
     val logU = Math.log(perplexity)
-    val norms = x.rows.map(Vectors.norm(_, 2.0))
-    norms.persist()
-    val rowsWithNorm = x.rows.zip(norms).map{ case (v, norm) => VectorWithNorm(v, norm) }
-    val neighbors = rowsWithNorm.zipWithIndex()
-      .cartesian(rowsWithNorm.zipWithIndex())
+    val norms = x.rowIter.map(org.apache.spark.ml.linalg.Vectors.norm(_, 2.0))
+    val rowsWithNorm: Iterator[VectorWithNorm] = x.rowIter.zip(norms).map{ case (v, norm) => VectorWithNorm(v, norm) }
+    val neighbors = rowsWithNorm.zipWithIndex
+      .cartesian(rowsWithNorm.zipWithIndex
       .flatMap {
-      case ((u, i), (v, j)) =>
-        if(i < j) {
-          val dist = fastSquaredDistance(u, v)
-          Seq((i, (j, dist)), (j, (i, dist)))
-        } else Seq.empty
-    }
+        case ((u, i), (v, j)) =>
+          if(i < j) {
+            val dist = Vectors.sqdist(u, v)
+            Seq((i, (j, dist)), (j, (i, dist)))
+          } else Seq.empty
+      }
       .topByKey(mu)(Ordering.by(e => -e._2))
 
     val p_betas =
