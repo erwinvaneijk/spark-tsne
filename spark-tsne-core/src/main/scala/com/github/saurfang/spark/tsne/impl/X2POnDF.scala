@@ -1,24 +1,28 @@
-package com.github.saurfang.spark.tsne
+package com.github.saurfang.spark.tsne.impl
 
 import breeze.linalg.DenseVector
-import org.apache.spark.mllib.X2PHelper.VectorWithNorm
-import org.apache.spark.mllib.X2PHelper._
-import org.apache.spark.mllib.linalg.Vectors
+import com.github.saurfang.spark.tsne.X2P
+import org.apache.spark.ml.X2PHelper.{VectorWithNorm, _}
+import org.apache.spark.ml.linalg.Vectors
 import org.apache.spark.mllib.linalg.distributed.{CoordinateMatrix, MatrixEntry, RowMatrix}
 import org.apache.spark.mllib.rdd.MLPairRDDFunctions._
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.functions.udf
 import org.slf4j.LoggerFactory
 
-object X2P {
+object X2POnDF {
 
   private def logger = LoggerFactory.getLogger(X2P.getClass)
 
-  def apply(x: RowMatrix, tol: Double = 1e-5, perplexity: Double = 30.0): CoordinateMatrix = {
+  def apply(x: DataFrame, tol: Double = 1e-5, perplexity: Double = 30.0): CoordinateMatrix = {
     require(tol >= 0, "Tolerance must be non-negative")
     require(perplexity > 0, "Perplexity must be positive")
 
     val mu = (3 * perplexity).toInt //TODO: Expose this as parameter
     val logU = Math.log(perplexity)
-    val norms = x.rows.map(Vectors.norm(_, 2.0))
+
+    def toNormVector = udf( v => Vectors.norm(v, 2.0))
+    val norms = x.withColumn("norm", toNormVector(x.col("pca")) )
     norms.persist()
     val rowsWithNorm = x.rows.zip(norms).map{ case (v, norm) => VectorWithNorm(v, norm) }
     val neighbors = rowsWithNorm.zipWithIndex()

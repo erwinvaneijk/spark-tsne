@@ -6,9 +6,11 @@ import java.io.{BufferedWriter, OutputStreamWriter}
 import com.github.saurfang.spark.tsne.impl._
 import com.github.saurfang.spark.tsne.tree.SPTree
 import org.apache.hadoop.fs.{FileSystem, Path}
+import org.apache.spark.SparkConf
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.linalg.distributed.RowMatrix
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.functions._
 import org.slf4j.LoggerFactory
 
 object MNIST {
@@ -18,18 +20,29 @@ object MNIST {
     val conf = new SparkConf()
       .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
       .registerKryoClasses(Array(classOf[SPTree]))
-    val sc = new SparkContext(conf)
+    val spark = SparkSession.builder().appName("MNINST").master("local[*]").config(conf) .getOrCreate()
+    val sc = spark.sparkContext
     val hadoopConf = sc.hadoopConfiguration
     val fs = FileSystem.get(hadoopConf)
 
-    val dataset = sc.textFile("data/MNIST/mnist.csv.gz")
+    val ds = spark.read.csv("data/mnist/mnist.csv.gz").withColumn("id", monotonically_increasing_id())
+    val toDouble = udf( (i: Int)=> i.toDouble)
+    val arrayColumns = 1.to(786).map{id: Int => toDouble(ds.col(s"_${id}"))}
+    val colNames = 1.to(786).map{id: Int => s"_${id}"}
+    val dsWithArray = ds.withColumn("v", array(arrayColumns:_*)).drop(colNames:_*)
+    dsWithArray.printSchema()
+    dsWithArray.show(10)
+
+    val dataset = sc.textFile("data/mnist/mnist.csv.gz")
       .zipWithIndex()
       .filter(_._2 < 6000)
-      .sortBy(_._2, true, 60)
+      .sortBy(_._2, ascending = true, 60)
       .map(_._1)
       .map(_.split(","))
       .map(x => (x.head.toInt, x.tail.map(_.toDouble)))
       .cache()
+    spark.createDataFrame(dataset).printSchema()
+
     //logInfo(dataset.collect.map(_._2.toList).toList.toString)
 
     //val features = dataset.map(x => Vectors.dense(x._2))

@@ -2,7 +2,7 @@ package org.apache.spark.mllib
 
 import breeze.linalg._
 import breeze.numerics._
-import org.apache.spark.mllib.linalg.{Vector, Vectors}
+import org.apache.spark.mllib.linalg.Vector
 import org.apache.spark.mllib.util.MLUtils
 
 
