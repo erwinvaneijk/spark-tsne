@@ -3,6 +3,7 @@ package com.github.saurfang.spark.tsne.impl
 import breeze.linalg._
 import breeze.stats.distributions.Rand
 import com.github.saurfang.spark.tsne.{TSNEGradient, TSNEHelper, TSNEParam, X2P}
+import org.apache.spark.SparkContext
 import org.apache.spark.mllib.linalg.distributed.RowMatrix
 import org.apache.spark.storage.StorageLevel
 import org.slf4j.LoggerFactory
@@ -18,7 +19,7 @@ object SimpleTSNE {
             maxIterations: Int = 1000,
             perplexity: Double = 30,
             callback: (Int, DenseMatrix[Double], Option[Double]) => Unit = {case _ => },
-            seed: Long = Random.nextLong()): DenseMatrix[Double] = {
+            seed: Long = Random.nextLong())(sparkContext: SparkContext): DenseMatrix[Double] = {
     if(input.rows.getStorageLevel == StorageLevel.NONE) {
       logger.warn("Input is not persisted and performance could be bad")
     }
@@ -34,7 +35,7 @@ object SimpleTSNE {
     val gains = DenseMatrix.ones[Double](n, noDims)
 
     // approximate p_{j|i}
-    val p_ji = X2P(input, 1e-5, perplexity)
+    val p_ji = X2P(input, 1e-5, perplexity)(sparkContext)
     val P = TSNEHelper.computeP(p_ji, n).glom().cache()
 
       var iteration = 1

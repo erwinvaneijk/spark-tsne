@@ -67,7 +67,7 @@ object MNIST {
         } finally {
           writer.close()
         }
-    })
+    })(sc)
     costWriter.close()
 
     sc.stop()

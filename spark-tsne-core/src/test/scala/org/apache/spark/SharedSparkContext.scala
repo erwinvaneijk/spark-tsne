@@ -9,7 +9,7 @@ trait SharedSparkContext extends BeforeAndAfterAll { self: Suite =>
 
   def sc: SparkContext = _sc
 
-  var conf = new SparkConf(false)
+  var conf = new SparkConf(false).set("spark.sql.crossJoin.enabled", "true")
 
   override def beforeAll() {
     _sc = new SparkContext("local[4]", "test", conf)

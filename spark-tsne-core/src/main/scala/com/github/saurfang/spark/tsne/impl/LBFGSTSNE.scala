@@ -4,6 +4,7 @@ import breeze.linalg._
 import breeze.optimize.{CachedDiffFunction, DiffFunction, LBFGS}
 import breeze.stats.distributions.Rand
 import com.github.saurfang.spark.tsne.{TSNEGradient, X2P}
+import org.apache.spark.SparkContext
 import org.apache.spark.mllib.linalg.distributed.RowMatrix
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
@@ -24,7 +25,7 @@ object LBFGSTSNE {
             numCorrections: Int = 10,
             convergenceTol: Double = 1e-4,
             perplexity: Double = 30,
-            seed: Long = Random.nextLong()): DenseMatrix[Double] = {
+            seed: Long = Random.nextLong())(sparkContext: SparkContext): DenseMatrix[Double] = {
     if(input.rows.getStorageLevel == StorageLevel.NONE) {
       logger.warn("Input is not persisted and performance could be bad")
     }
@@ -44,7 +45,7 @@ object LBFGSTSNE {
     val gains = DenseMatrix.ones[Double](n, noDims)
 
     // approximate p_{j|i}
-    val p_ji = X2P(input, 1e-5, perplexity)
+    val p_ji = X2P(input, 1e-5, perplexity)(sparkContext = sparkContext)
     //logInfo(p_ji.toRowMatrix().rows.collect().toList.toString)
     // p_ij = (p_{i|j} + p_{j|i}) / 2n
     val P = p_ji.transpose().entries.union(p_ji.entries)
