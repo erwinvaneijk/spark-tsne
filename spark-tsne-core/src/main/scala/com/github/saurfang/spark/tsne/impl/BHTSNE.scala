@@ -5,7 +5,7 @@ import breeze.stats.distributions.Rand
 import com.github.saurfang.spark.tsne.tree.SPTree
 import com.github.saurfang.spark.tsne.{TSNEGradient, TSNEHelper, TSNEParam, X2P}
 import org.apache.spark.SparkContext
-import org.apache.spark.mllib.linalg.distributed.RowMatrix
+import org.apache.spark.mllib.linalg.distributed.{CoordinateMatrix, RowMatrix}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.storage.StorageLevel
 import org.slf4j.LoggerFactory
@@ -38,7 +38,7 @@ object BHTSNE {
     val gains = DenseMatrix.ones[Double](n, noDims)
 
     // approximate p_{j|i}
-    val p_ji = X2P(input, 1e-5, perplexity)(spark)
+    val p_ji: CoordinateMatrix = X2P(input, 1e-5, perplexity)(spark)
     logger.error(s"${p_ji.numCols()} x ${p_ji.numRows()}")
 
     val P = TSNEHelper.computeP(p_ji, n).glom()

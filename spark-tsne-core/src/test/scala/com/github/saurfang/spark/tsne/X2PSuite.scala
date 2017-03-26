@@ -30,8 +30,8 @@ class X2PSuite extends FunSuite with SharedSparkContext with Matchers {
 
   test("Test new X2P against small dataset") {
     val sparkSession = SparkSession.builder().getOrCreate()
-    val dataset: Seq[(Int, Vector)] = Seq(1 to 3, 4 to 6, 7 to 9, 10 to 12)
-      .map(x => Vectors.dense(x.map(_.toDouble).toArray)).zipWithIndex
+    val dataset: Seq[(Int, org.apache.spark.ml.linalg.Vector)] = Seq(1 to 3, 4 to 6, 7 to 9, 10 to 12)
+      .map(x => org.apache.spark.ml.linalg.Vectors.dense(x.map(_.toDouble).toArray)).zipWithIndex
       .map{ case (v, i) => (i, v)}
     val input = sparkSession.createDataFrame(dataset).toDF("i", "v")
     input.printSchema()

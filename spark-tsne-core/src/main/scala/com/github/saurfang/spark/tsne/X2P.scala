@@ -3,8 +3,8 @@ package com.github.saurfang.spark.tsne
 import breeze.linalg.DenseVector
 import org.apache.spark.SparkContext
 import org.apache.spark.mllib.X2PHelper._
+import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.linalg.distributed.{CoordinateMatrix, MatrixEntry, RowMatrix}
-import org.apache.spark.mllib.linalg.{Vector, Vectors}
 import org.apache.spark.mllib.rdd.MLPairRDDFunctions._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
@@ -18,13 +18,13 @@ object X2P {
 
   private def logger = LoggerFactory.getLogger(X2P.getClass)
 
-  private def distanceCompute = udf((v: Vector, u: Vector) =>
-    Vectors.sqdist(v, u)
+  private def distanceCompute = udf((v: org.apache.spark.ml.linalg.Vector, u: org.apache.spark.ml.linalg.Vector) =>
+    org.apache.spark.ml.linalg.Vectors.sqdist(v, u)
   )
 
   private def toLong = udf((i: java.math.BigDecimal) => i.longValue())
 
-  private def cosineSimilarity = udf((v: Vector, u: Vector) => {
+  private def cosineSimilarity = udf((v: org.apache.spark.ml.linalg.Vector, u: org.apache.spark.ml.linalg.Vector) => {
     var dotProduct = 0.0
     var normA = 0.0
     var normB = 0.0
@@ -88,7 +88,7 @@ object X2P {
     // only 'mu' entries.
     import spark.implicits._
     val neighbors = distanceMatrix.groupBy("i_num").agg(topN(mu)(pairwisePairUp(collect_list($"j_num"), collect_list($"distance"))).as("arr"))
-    neighbors
+    neighbors.repartition(8)
   }
 
   private def getPBetaValuesDF(neighbors: DataFrame, tol: Double, perplexity: Double)(implicit spark: SparkSession): RDD[(mutable.WrappedArray[MatrixEntry], Double)] = {
@@ -148,7 +148,7 @@ object X2P {
     }
   }
 
-  private def getPBetaValues(neighbors: RDD[(Long, Array[(Long, Double)])], tol: Double, perplexity: Double) = {
+  private def getPBetaValues(neighbors: RDD[(Long, Array[(Long, Double)])], tol: Double, perplexity: Double): RDD[(Array[MatrixEntry], Double)] = {
     val logU = Math.log(perplexity)
 
     neighbors.map {
@@ -211,13 +211,15 @@ object X2P {
 
     distanceMatrix.printSchema()
     val neighbors = computeRankedNeighbors(mu, distanceMatrix)
-    neighbors.collect.foreach{
-      case row: Row  =>
-        val i = row.getAs[Long](0)
-        val arr = row.getAs[mutable.WrappedArray[(Long, Double)]](1)
-        print(s"${i}\t")
-        print(arr.mkString(" "))
-        println()
+    if (logger.isDebugEnabled) {
+      neighbors.collect.foreach {
+        case row: Row =>
+          val i = row.getAs[Long](0)
+          val arr = row.getAs[mutable.WrappedArray[(Long, Double)]](1)
+          print(s"${i}\t")
+          print(arr.mkString(" "))
+          println()
+      }
     }
     val p_betas =
       getPBetaValuesDF(neighbors, tol, perplexity)
