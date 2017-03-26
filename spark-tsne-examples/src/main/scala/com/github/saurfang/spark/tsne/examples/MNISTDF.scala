@@ -8,7 +8,7 @@ import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.SparkConf
 import org.apache.spark.ml.feature.{PCA, StandardScaler}
 import org.apache.spark.ml.linalg.Vectors
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.sql.functions._
 import org.apache.spark.storage.StorageLevel
 import org.slf4j.LoggerFactory
@@ -51,7 +51,7 @@ object MNISTDF {
     val pcaModel = pca.fit(scaledDataDF)
     val features = pcaModel.transform(scaledDataDF).persist(StorageLevel.MEMORY_AND_DISK_2)
 
-    val labels = df.select($"label")
+    val labels = df.select($"label").collect().map{ r: Row => r.getAs[String](0).toInt}
 
     /*
     val dataset = sc.textFile("data/MNIST/mnist.csv.gz")
@@ -92,7 +92,7 @@ object MNISTDF {
         try {
           (0 until y.rows).foreach {
             row =>
-              writer.write(labels(row.toString).toString)
+              writer.write(labels(row).toString)
               writer.write(y(row, ::).inner.toArray.mkString(",", ",", "\n"))
           }
           if(loss.isDefined) costWriter.write(loss.get + "\n")
